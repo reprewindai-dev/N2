@@ -106,6 +106,44 @@
   }
 })();
 
+// PaymentState - Session storage wrapper for payment status management
+const PaymentState = {
+  STORAGE_KEY: 'sff_payment_confirmed',
+  ORDER_ID_KEY: 'sff_order_id',
+
+  set: function(confirmed) {
+    sessionStorage.setItem(this.STORAGE_KEY, confirmed ? 'true' : 'false');
+  },
+
+  get: function() {
+    return sessionStorage.getItem(this.STORAGE_KEY) === 'true';
+  },
+
+  setOrderID: function(orderID) {
+    sessionStorage.setItem(this.ORDER_ID_KEY, orderID);
+  },
+
+  getOrderID: function() {
+    return sessionStorage.getItem(this.ORDER_ID_KEY);
+  },
+
+  clear: function() {
+    sessionStorage.removeItem(this.STORAGE_KEY);
+    sessionStorage.removeItem(this.ORDER_ID_KEY);
+  }
+};
+
+// Second PayPal implementation with enhanced UI features
+(function() {
+  "use strict";
+
+  function getOrderData() {
+    const serviceSelect = document.getElementById("serviceSelect");
+    const selectedPackageRadio = document.querySelector('input[name="sff-package"]:checked');
+    const addonCheckboxes = document.querySelectorAll('.addon-checkbox input[type="checkbox"]:checked');
+
+    if (!serviceSelect || !selectedPackageRadio) {
+      return null;
     }
 
     const service = serviceSelect.value;
