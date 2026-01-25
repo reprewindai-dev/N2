@@ -53,21 +53,28 @@
     back.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
   }
 
-  // Particle canvas (lightweight ambient)
+  // Particle canvas (ambient floating particles)
   const canvas = $('#particleCanvas');
   if(canvas){
     const ctx = canvas.getContext('2d');
     function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize); resize();
-    const dots = Array.from({length: 40}, ()=>({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-.5)*.2, vy:(Math.random()-.5)*.2}));
+    const dots = Array.from({length: 100}, ()=>({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      vx: (Math.random()-.5)*.8,
+      vy: (Math.random()-.5)*.8,
+      size: Math.random()*2.5 + 1.5,
+      opacity: Math.random()*.4 + .3
+    }));
     function frame(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="rgba(198,255,64,.18)";
       dots.forEach(d=>{
         d.x+=d.vx; d.y+=d.vy;
         if(d.x<0||d.x>canvas.width) d.vx*=-1;
         if(d.y<0||d.y>canvas.height) d.vy*=-1;
-        ctx.beginPath(); ctx.arc(d.x,d.y,1.2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=`rgba(198,255,64,${d.opacity})`;
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.size,0,Math.PI*2); ctx.fill();
       });
       requestAnimationFrame(frame);
     }
