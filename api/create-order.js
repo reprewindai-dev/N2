@@ -1,6 +1,6 @@
 // PayPal Create Order API Endpoint
 // Environment Variables Required:
-// - PAYPAL_CLIENT_ID: Your PayPal Client ID
+// - PAYPAL_CLIENT_ID: Your PayPal Client ID (must match frontend SDK)
 // - PAYPAL_CLIENT_SECRET: Your PayPal Client Secret
 // - PAYPAL_MODE: 'sandbox' or 'live'
 
@@ -33,17 +33,35 @@ const ADDON_PRICING = {
   sourceFiles: 15
 };
 
+// Mask credential for safe logging (show first 8 and last 4 chars)
+function maskCredential(str) {
+  if (!str || str.length < 16) return str ? '***' : 'NOT SET';
+  return `${str.substring(0, 8)}...${str.substring(str.length - 4)}`;
+}
+
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
   const mode = process.env.PAYPAL_MODE || 'sandbox';
 
+  // Log configuration for debugging (masked for security)
+  console.log(`[PayPal] Config check:`);
+  console.log(`[PayPal]   Mode: ${mode}`);
+  console.log(`[PayPal]   API Base: ${PAYPAL_API_BASE}`);
+  console.log(`[PayPal]   Client ID: ${maskCredential(clientId)}`);
+  console.log(`[PayPal]   Secret: ${clientSecret ? 'SET' : 'NOT SET'}`);
+
   if (!clientId || !clientSecret) {
-    console.error('[PayPal] Missing credentials - PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET not set');
-    throw new Error('PayPal credentials not configured');
+    console.error('[PayPal] FATAL: Missing credentials');
+    console.error('[PayPal]   PAYPAL_CLIENT_ID:', clientId ? 'present' : 'MISSING');
+    console.error('[PayPal]   PAYPAL_CLIENT_SECRET:', clientSecret ? 'present' : 'MISSING');
+    throw new Error('PayPal credentials not configured. Check Vercel environment variables.');
   }
 
-  console.log(`[PayPal] Requesting access token (mode: ${mode})`);
+  // IMPORTANT: Frontend SDK must use the same client ID
+  // Current frontend hardcodes: ATvfbUWm...xICZ
+  // Backend env var must match exactly!
+  console.log(`[PayPal] Requesting access token...`);
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -59,8 +77,23 @@ async function getAccessToken() {
   const data = await response.json();
 
   if (!response.ok) {
-    console.error(`[PayPal] Token request failed - Status: ${response.status}`, data);
-    throw new Error(data.error_description || 'Failed to get access token');
+    // Log detailed token error
+    console.error(`[PayPal] Token request FAILED`);
+    console.error(`[PayPal]   Status: ${response.status}`);
+    console.error(`[PayPal]   Error: ${data.error || 'unknown'}`);
+    console.error(`[PayPal]   Description: ${data.error_description || 'none'}`);
+
+    // Common errors:
+    // - 401 invalid_client = wrong client_id or secret
+    // - 401 unauthorized = credentials don't match mode (sandbox vs live)
+    if (response.status === 401) {
+      console.error('[PayPal] HINT: 401 usually means:');
+      console.error('[PayPal]   1. Client ID and Secret do not match');
+      console.error('[PayPal]   2. Using sandbox credentials with live API or vice versa');
+      console.error('[PayPal]   3. Frontend SDK client-id differs from backend PAYPAL_CLIENT_ID');
+    }
+
+    throw new Error(data.error_description || `Token request failed: ${data.error || response.status}`);
   }
 
   console.log('[PayPal] Access token obtained successfully');
@@ -108,17 +141,48 @@ export default async function handler(req, res) {
 
     // Validate required fields
     if (!service || !packageType) {
-      return res.status(400).json({ error: 'Missing service or package' });
+      console.error('[PayPal] Missing required fields:', { service, packageType });
+      return res.status(400).json({
+        error: 'Missing service or package',
+        debug_id: null,
+        details: []
+      });
     }
 
     // Calculate total amount
     const totalAmount = calculateTotal(service, packageType, addons);
     const amountString = totalAmount.toFixed(2);
 
-    console.log(`[PayPal] Creating order - Service: ${service}, Package: ${packageType}, Amount: $${amountString}`);
+    console.log(`[PayPal] === CREATE ORDER START ===`);
+    console.log(`[PayPal] Service: ${service}`);
+    console.log(`[PayPal] Package: ${packageType}`);
+    console.log(`[PayPal] Addons: ${addons.length > 0 ? addons.join(', ') : 'none'}`);
+    console.log(`[PayPal] Total: $${amountString}`);
 
     // Get PayPal access token
     const accessToken = await getAccessToken();
+
+    // Build order payload
+    const orderPayload = {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        amount: {
+          currency_code: 'USD',
+          value: amountString
+        },
+        description: `ShortFormFactory - ${service} (${packageType})`,
+        custom_id: JSON.stringify({ service, package: packageType, addons })
+      }],
+      application_context: {
+        brand_name: 'ShortFormFactory',
+        landing_page: 'NO_PREFERENCE',
+        user_action: 'PAY_NOW',
+        return_url: `${req.headers.origin || 'https://n2-umber.vercel.app'}/thank-you.html`,
+        cancel_url: `${req.headers.origin || 'https://n2-umber.vercel.app'}/order.html`
+      }
+    };
+
+    console.log(`[PayPal] Order payload:`, JSON.stringify(orderPayload, null, 2));
 
     // Create PayPal order
     const orderResponse = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
@@ -127,24 +191,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        intent: 'CAPTURE',
-        purchase_units: [{
-          amount: {
-            currency_code: 'USD',
-            value: amountString
-          },
-          description: `ShortFormFactory - ${service} (${packageType})`,
-          custom_id: JSON.stringify({ service, package: packageType, addons })
-        }],
-        application_context: {
-          brand_name: 'ShortFormFactory',
-          landing_page: 'NO_PREFERENCE',
-          user_action: 'PAY_NOW',
-          return_url: `${process.env.VERCEL_URL || req.headers.origin}/thank-you.html`,
-          cancel_url: `${process.env.VERCEL_URL || req.headers.origin}/order.html`
-        }
-      })
+      body: JSON.stringify(orderPayload)
     });
 
     const orderData = await orderResponse.json();
@@ -156,13 +203,15 @@ export default async function handler(req, res) {
       const errorMessage = orderData.message || 'Failed to create PayPal order';
       const errorDetails = orderData.details || [];
 
-      console.error(`[PayPal] Create order failed - Status: ${orderResponse.status}`);
+      console.error(`[PayPal] === CREATE ORDER FAILED ===`);
+      console.error(`[PayPal] Status: ${orderResponse.status}`);
       console.error(`[PayPal] Debug ID: ${debugId}`);
-      console.error(`[PayPal] Error: ${errorName} - ${errorMessage}`);
-      console.error('[PayPal] Details:', JSON.stringify(errorDetails, null, 2));
+      console.error(`[PayPal] Error Name: ${errorName}`);
+      console.error(`[PayPal] Error Message: ${errorMessage}`);
+      console.error(`[PayPal] Details:`, JSON.stringify(errorDetails, null, 2));
 
       return res.status(orderResponse.status).json({
-        error: errorMessage,
+        error: `${errorName}: ${errorMessage}`,
         debug_id: debugId,
         details: errorDetails.map(d => ({
           field: d.field,
@@ -172,7 +221,9 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[PayPal] Order created successfully - ID: ${orderData.id}, Status: ${orderData.status}`);
+    console.log(`[PayPal] === CREATE ORDER SUCCESS ===`);
+    console.log(`[PayPal] Order ID: ${orderData.id}`);
+    console.log(`[PayPal] Status: ${orderData.status}`);
 
     return res.status(200).json({
       orderID: orderData.id,
@@ -180,7 +231,10 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('[PayPal] Create order exception:', error.message);
+    console.error('[PayPal] === CREATE ORDER EXCEPTION ===');
+    console.error('[PayPal] Error:', error.message);
+    console.error('[PayPal] Stack:', error.stack);
+
     return res.status(500).json({
       error: error.message || 'Internal server error',
       debug_id: null,
