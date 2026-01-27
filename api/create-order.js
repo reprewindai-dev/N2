@@ -36,10 +36,14 @@ const ADDON_PRICING = {
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const mode = process.env.PAYPAL_MODE || 'sandbox';
 
   if (!clientId || !clientSecret) {
+    console.error('[PayPal] Missing credentials - PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET not set');
     throw new Error('PayPal credentials not configured');
   }
+
+  console.log(`[PayPal] Requesting access token (mode: ${mode})`);
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -55,14 +59,15 @@ async function getAccessToken() {
   const data = await response.json();
 
   if (!response.ok) {
+    console.error(`[PayPal] Token request failed - Status: ${response.status}`, data);
     throw new Error(data.error_description || 'Failed to get access token');
   }
 
+  console.log('[PayPal] Access token obtained successfully');
   return data.access_token;
 }
 
 function calculateTotal(service, packageType, addons = []) {
-  // Get base price for service and package
   const servicePricing = PRICING[service];
   if (!servicePricing) {
     throw new Error(`Invalid service: ${service}`);
@@ -73,7 +78,6 @@ function calculateTotal(service, packageType, addons = []) {
     throw new Error(`Invalid package: ${packageType}`);
   }
 
-  // Calculate add-on total
   let addonTotal = 0;
   for (const addon of addons) {
     const addonPrice = ADDON_PRICING[addon];
@@ -109,6 +113,9 @@ export default async function handler(req, res) {
 
     // Calculate total amount
     const totalAmount = calculateTotal(service, packageType, addons);
+    const amountString = totalAmount.toFixed(2);
+
+    console.log(`[PayPal] Creating order - Service: ${service}, Package: ${packageType}, Amount: $${amountString}`);
 
     // Get PayPal access token
     const accessToken = await getAccessToken();
@@ -125,7 +132,7 @@ export default async function handler(req, res) {
         purchase_units: [{
           amount: {
             currency_code: 'USD',
-            value: totalAmount.toFixed(2)
+            value: amountString
           },
           description: `ShortFormFactory - ${service} (${packageType})`,
           custom_id: JSON.stringify({ service, package: packageType, addons })
@@ -143,9 +150,29 @@ export default async function handler(req, res) {
     const orderData = await orderResponse.json();
 
     if (!orderResponse.ok) {
-      console.error('PayPal create order error:', orderData);
-      return res.status(500).json({ error: 'Failed to create PayPal order' });
+      // Extract PayPal error details
+      const debugId = orderData.debug_id || null;
+      const errorName = orderData.name || 'UNKNOWN_ERROR';
+      const errorMessage = orderData.message || 'Failed to create PayPal order';
+      const errorDetails = orderData.details || [];
+
+      console.error(`[PayPal] Create order failed - Status: ${orderResponse.status}`);
+      console.error(`[PayPal] Debug ID: ${debugId}`);
+      console.error(`[PayPal] Error: ${errorName} - ${errorMessage}`);
+      console.error('[PayPal] Details:', JSON.stringify(errorDetails, null, 2));
+
+      return res.status(orderResponse.status).json({
+        error: errorMessage,
+        debug_id: debugId,
+        details: errorDetails.map(d => ({
+          field: d.field,
+          issue: d.issue,
+          description: d.description
+        }))
+      });
     }
+
+    console.log(`[PayPal] Order created successfully - ID: ${orderData.id}, Status: ${orderData.status}`);
 
     return res.status(200).json({
       orderID: orderData.id,
@@ -153,7 +180,11 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Create order error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[PayPal] Create order exception:', error.message);
+    return res.status(500).json({
+      error: error.message || 'Internal server error',
+      debug_id: null,
+      details: []
+    });
   }
 }
