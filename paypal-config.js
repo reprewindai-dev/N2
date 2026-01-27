@@ -49,10 +49,17 @@
     return { service, package: packageType, addons };
   }
 
-  function showError(message) {
+  function showError(message, debugId = null) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'payment-notification error';
-    errorDiv.textContent = message;
+
+    // Build error content with optional debug ID
+    let content = message;
+    if (debugId) {
+      content += `<br><small style="opacity:0.8;font-size:12px;">Debug ID: ${debugId}</small>`;
+    }
+
+    errorDiv.innerHTML = content;
     errorDiv.style.cssText = `
       position: fixed;
       top: 20px;
@@ -63,8 +70,9 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       z-index: 10000;
-      max-width: 320px;
+      max-width: 400px;
       font-size: 14px;
+      line-height: 1.4;
     `;
 
     document.body.appendChild(errorDiv);
@@ -73,13 +81,13 @@
       errorDiv.style.opacity = '0';
       errorDiv.style.transition = 'opacity 0.3s ease';
       setTimeout(() => errorDiv.remove(), 300);
-    }, 5000);
+    }, 8000);
   }
 
   function initPayPal() {
     // Check if PayPal SDK is loaded
     if (typeof paypal === "undefined") {
-      console.error("PayPal SDK not loaded");
+      console.error("[PayPal Client] SDK not loaded");
       return;
     }
 
@@ -97,6 +105,8 @@
           throw new Error("Missing selection");
         }
 
+        console.log("[PayPal Client] Creating order:", orderData);
+
         try {
           const res = await fetch("/api/create-order", {
             method: "POST",
@@ -105,19 +115,34 @@
           });
 
           const data = await res.json();
+
           if (!res.ok || !data.orderID) {
-            throw new Error(data.error || "Order creation failed");
+            // Show detailed PayPal error
+            const errorMsg = data.error || "Order creation failed";
+            const debugId = data.debug_id || null;
+
+            console.error("[PayPal Client] Create order failed:", data);
+            showError(errorMsg, debugId);
+            throw new Error(errorMsg);
           }
 
+          console.log("[PayPal Client] Order created:", data.orderID);
           return data.orderID;
         } catch (err) {
-          console.error("Create order error:", err);
-          showError("Failed to create order. Please try again.");
+          console.error("[PayPal Client] Create order error:", err);
+          if (!err.message.includes("Missing selection")) {
+            // Only show generic error if we haven't already shown a specific one
+            if (!document.querySelector('.payment-notification')) {
+              showError("Failed to create order. Please try again.");
+            }
+          }
           throw err;
         }
       },
 
       onApprove: async function(data) {
+        console.log("[PayPal Client] Payment approved, capturing order:", data.orderID);
+
         try {
           const res = await fetch("/api/capture-order", {
             method: "POST",
@@ -127,7 +152,19 @@
 
           const captureData = await res.json();
 
-          if (captureData.success && captureData.status === "COMPLETED") {
+          if (!res.ok || !captureData.success) {
+            // Show detailed PayPal error
+            const errorMsg = captureData.error || "Payment capture failed";
+            const debugId = captureData.debug_id || null;
+
+            console.error("[PayPal Client] Capture failed:", captureData);
+            showError(`${errorMsg}. Order ID: ${data.orderID}`, debugId);
+            return;
+          }
+
+          if (captureData.status === "COMPLETED") {
+            console.log("[PayPal Client] Payment completed successfully");
+
             // Store payment confirmation
             PaymentState.set(true);
             PaymentState.setOrderID(data.orderID);
@@ -136,21 +173,23 @@
             // Redirect to Tally form
             window.location.href = TALLY_FORM_URL;
           } else {
-            throw new Error("Capture failed");
+            console.warn("[PayPal Client] Unexpected capture status:", captureData.status);
+            showError(`Payment status: ${captureData.status}. Contact support with Order ID: ${data.orderID}`);
           }
         } catch (err) {
-          console.error("Capture error:", err);
-          showError("Payment verification failed. Contact support with Order ID: " + data.orderID);
+          console.error("[PayPal Client] Capture error:", err);
+          showError(`Payment verification failed. Contact support with Order ID: ${data.orderID}`);
         }
       },
 
       onCancel: function() {
+        console.log("[PayPal Client] Payment cancelled by user");
         showError("Payment cancelled. You can retry anytime.");
       },
 
       onError: function(err) {
-        console.error("PayPal error:", err);
-        showError("Payment error occurred. Please try again.");
+        console.error("[PayPal Client] PayPal SDK error:", err);
+        showError("PayPal encountered an error. Please refresh and try again.");
       },
 
       style: {

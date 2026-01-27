@@ -11,10 +11,14 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
 async function getAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const mode = process.env.PAYPAL_MODE || 'sandbox';
 
   if (!clientId || !clientSecret) {
+    console.error('[PayPal] Missing credentials - PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET not set');
     throw new Error('PayPal credentials not configured');
   }
+
+  console.log(`[PayPal] Requesting access token for capture (mode: ${mode})`);
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -30,9 +34,11 @@ async function getAccessToken() {
   const data = await response.json();
 
   if (!response.ok) {
+    console.error(`[PayPal] Token request failed - Status: ${response.status}`, data);
     throw new Error(data.error_description || 'Failed to get access token');
   }
 
+  console.log('[PayPal] Access token obtained successfully');
   return data.access_token;
 }
 
@@ -57,6 +63,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing orderID' });
     }
 
+    console.log(`[PayPal] Capturing order - ID: ${orderID}`);
+
     // Get PayPal access token
     const accessToken = await getAccessToken();
 
@@ -75,10 +83,26 @@ export default async function handler(req, res) {
     const captureData = await captureResponse.json();
 
     if (!captureResponse.ok) {
-      console.error('PayPal capture error:', captureData);
-      return res.status(500).json({
-        error: 'Failed to capture payment',
-        details: captureData
+      // Extract PayPal error details
+      const debugId = captureData.debug_id || null;
+      const errorName = captureData.name || 'UNKNOWN_ERROR';
+      const errorMessage = captureData.message || 'Failed to capture payment';
+      const errorDetails = captureData.details || [];
+
+      console.error(`[PayPal] Capture failed - Status: ${captureResponse.status}`);
+      console.error(`[PayPal] Order ID: ${orderID}`);
+      console.error(`[PayPal] Debug ID: ${debugId}`);
+      console.error(`[PayPal] Error: ${errorName} - ${errorMessage}`);
+      console.error('[PayPal] Details:', JSON.stringify(errorDetails, null, 2));
+
+      return res.status(captureResponse.status).json({
+        error: errorMessage,
+        debug_id: debugId,
+        details: errorDetails.map(d => ({
+          field: d.field,
+          issue: d.issue,
+          description: d.description
+        }))
       });
     }
 
@@ -86,8 +110,13 @@ export default async function handler(req, res) {
     const captureId = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id;
     const payerEmail = captureData.payer?.email_address;
     const amountPaid = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value;
+    const currencyCode = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.currency_code;
 
-    console.log(`Payment captured: Order ${orderID}, Capture ${captureId}, Amount $${amountPaid}, Payer: ${payerEmail}`);
+    console.log(`[PayPal] Payment captured successfully`);
+    console.log(`[PayPal] Order ID: ${orderID}`);
+    console.log(`[PayPal] Capture ID: ${captureId}`);
+    console.log(`[PayPal] Amount: ${currencyCode} ${amountPaid}`);
+    console.log(`[PayPal] Payer: ${payerEmail}`);
 
     return res.status(200).json({
       success: true,
@@ -99,7 +128,11 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Capture order error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('[PayPal] Capture order exception:', error.message);
+    return res.status(500).json({
+      error: error.message || 'Internal server error',
+      debug_id: null,
+      details: []
+    });
   }
 }
