@@ -59,13 +59,13 @@
     const ctx = canvas.getContext('2d');
     function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize); resize();
-    const dots = Array.from({length: 100}, ()=>({
+    const dots = Array.from({length: 80}, ()=>({
       x: Math.random()*canvas.width,
       y: Math.random()*canvas.height,
-      vx: (Math.random()-.5)*.8,
-      vy: (Math.random()-.5)*.8,
-      size: Math.random()*2.5 + 1.5,
-      opacity: Math.random()*.4 + .3
+      vx: (Math.random()-.5)*.4,
+      vy: (Math.random()-.5)*.4,
+      size: Math.random()*1.5 + 1.0,
+      opacity: Math.random()*.35 + .25
     }));
     function frame(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
