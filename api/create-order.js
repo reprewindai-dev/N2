@@ -10,6 +10,7 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
 
 // Service pricing configuration
 const PRICING = {
+  testPurchase: { basic: 1, standard: 1, premium: 1 },  // $1 test mode
   aiReel: { basic: 35, standard: 55, premium: 85 },
   socialEdit: { basic: 25, standard: 45, premium: 70 },
   viralCaptions: { basic: 15, standard: 30, premium: 50 },
