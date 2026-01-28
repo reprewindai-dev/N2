@@ -162,6 +162,14 @@ export default async function handler(req, res) {
     // Get PayPal access token
     const accessToken = await getAccessToken();
 
+    // Determine base URL for redirects
+    // Priority: SITE_URL env var > origin header > production domain
+    const baseUrl = process.env.SITE_URL ||
+                    req.headers.origin ||
+                    'https://shortformfactory.com';
+
+    console.log(`[PayPal] Redirect base URL: ${baseUrl}`);
+
     // Build order payload
     const orderPayload = {
       intent: 'CAPTURE',
@@ -177,8 +185,8 @@ export default async function handler(req, res) {
         brand_name: 'ShortFormFactory',
         landing_page: 'NO_PREFERENCE',
         user_action: 'PAY_NOW',
-        return_url: `${req.headers.origin || 'https://n2-umber.vercel.app'}/thank-you.html`,
-        cancel_url: `${req.headers.origin || 'https://n2-umber.vercel.app'}/order.html`
+        return_url: `${baseUrl}/thank-you.html`,
+        cancel_url: `${baseUrl}/order.html`
       }
     };
 

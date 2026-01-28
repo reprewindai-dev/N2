@@ -53,7 +53,6 @@
     const errorDiv = document.createElement('div');
     errorDiv.className = 'payment-notification error';
 
-    // Build error content with optional debug ID
     let content = message;
     if (debugId) {
       content += `<br><small style="opacity:0.8;font-size:12px;">Debug ID: ${debugId}</small>`;
@@ -84,8 +83,35 @@
     }, 8000);
   }
 
-  function initPayPal() {
-    // Check if PayPal SDK is loaded
+  function showLoading(message) {
+    const existing = document.getElementById('paypal-loading');
+    if (existing) existing.remove();
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'paypal-loading';
+    loadingDiv.innerHTML = `<span style="margin-right:8px;">⏳</span>${message}`;
+    loadingDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1890ff;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      font-size: 14px;
+    `;
+    document.body.appendChild(loadingDiv);
+    return loadingDiv;
+  }
+
+  function hideLoading() {
+    const loading = document.getElementById('paypal-loading');
+    if (loading) loading.remove();
+  }
+
+  function initPayPalButtons() {
     if (typeof paypal === "undefined") {
       console.error("[PayPal Client] SDK not loaded");
       return;
@@ -94,7 +120,6 @@
     const container = document.getElementById("paypal-button-container");
     if (!container) return;
 
-    // Clear container to prevent duplicates
     container.innerHTML = '';
 
     paypal.Buttons({
@@ -117,7 +142,6 @@
           const data = await res.json();
 
           if (!res.ok || !data.orderID) {
-            // Show detailed PayPal error
             const errorMsg = data.error || "Order creation failed";
             const debugId = data.debug_id || null;
 
@@ -131,7 +155,6 @@
         } catch (err) {
           console.error("[PayPal Client] Create order error:", err);
           if (!err.message.includes("Missing selection")) {
-            // Only show generic error if we haven't already shown a specific one
             if (!document.querySelector('.payment-notification')) {
               showError("Failed to create order. Please try again.");
             }
@@ -142,6 +165,7 @@
 
       onApprove: async function(data) {
         console.log("[PayPal Client] Payment approved, capturing order:", data.orderID);
+        const loading = showLoading("Processing payment...");
 
         try {
           const res = await fetch("/api/capture-order", {
@@ -151,9 +175,9 @@
           });
 
           const captureData = await res.json();
+          hideLoading();
 
           if (!res.ok || !captureData.success) {
-            // Show detailed PayPal error
             const errorMsg = captureData.error || "Payment capture failed";
             const debugId = captureData.debug_id || null;
 
@@ -165,18 +189,17 @@
           if (captureData.status === "COMPLETED") {
             console.log("[PayPal Client] Payment completed successfully");
 
-            // Store payment confirmation
             PaymentState.set(true);
             PaymentState.setOrderID(data.orderID);
             sessionStorage.setItem("sff_order_id", data.orderID);
 
-            // Redirect to Tally form
             window.location.href = TALLY_FORM_URL;
           } else {
             console.warn("[PayPal Client] Unexpected capture status:", captureData.status);
             showError(`Payment status: ${captureData.status}. Contact support with Order ID: ${data.orderID}`);
           }
         } catch (err) {
+          hideLoading();
           console.error("[PayPal Client] Capture error:", err);
           showError(`Payment verification failed. Contact support with Order ID: ${data.orderID}`);
         }
@@ -200,15 +223,71 @@
       }
     }).render("#paypal-button-container");
 
-    // Hide the old pay button
     const oldBtn = document.getElementById("payButton");
     if (oldBtn) oldBtn.style.display = "none";
   }
 
+  // Load PayPal SDK dynamically with client ID from config
+  async function loadPayPalSDK() {
+    const container = document.getElementById("paypal-button-container");
+    if (!container) {
+      console.log("[PayPal Client] No button container found, skipping SDK load");
+      return;
+    }
+
+    // Check if SDK already loaded (from static script tag)
+    if (typeof paypal !== "undefined") {
+      console.log("[PayPal Client] SDK already loaded, initializing buttons");
+      initPayPalButtons();
+      return;
+    }
+
+    console.log("[PayPal Client] Fetching PayPal config...");
+
+    try {
+      const configRes = await fetch("/api/paypal/config");
+      const config = await configRes.json();
+
+      if (!configRes.ok || !config.clientId) {
+        console.error("[PayPal Client] Failed to get PayPal config:", config);
+        showError("PayPal configuration error. Please try again later.");
+        return;
+      }
+
+      console.log(`[PayPal Client] Config loaded - Mode: ${config.mode}`);
+
+      // Create and load PayPal SDK script
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${config.clientId}&currency=${config.currency}`;
+      script.async = true;
+
+      script.onload = function() {
+        console.log("[PayPal Client] SDK loaded successfully");
+        initPayPalButtons();
+      };
+
+      script.onerror = function() {
+        console.error("[PayPal Client] Failed to load PayPal SDK");
+        showError("Failed to load PayPal. Please refresh the page.");
+      };
+
+      document.head.appendChild(script);
+
+    } catch (err) {
+      console.error("[PayPal Client] Config fetch error:", err);
+      // Fall back to checking if SDK was loaded via static script tag
+      if (typeof paypal !== "undefined") {
+        initPayPalButtons();
+      } else {
+        showError("PayPal is temporarily unavailable. Please try again later.");
+      }
+    }
+  }
+
   // Initialize on DOM ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initPayPal);
+    document.addEventListener("DOMContentLoaded", loadPayPalSDK);
   } else {
-    initPayPal();
+    loadPayPalSDK();
   }
 })();
