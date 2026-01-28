@@ -99,6 +99,7 @@
   const packageError = $('#packageError');
 
   const PRICES = {
+    testPurchase: {name:'Test Purchase', basic:1, standard:1, premium:1},
     aiReel: {name:'AI Reel Edit', basic:25, standard:60, premium:140},
     socialEdit: {name:'Social Media Edit', basic:30, standard:70, premium:160},
     viralCaptions: {name:'Viral Captions', basic:20, standard:50, premium:110},
