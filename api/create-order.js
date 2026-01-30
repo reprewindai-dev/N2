@@ -8,17 +8,17 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
-// Service pricing configuration
+// Service pricing configuration — MUST match services.html and main.js
 const PRICING = {
   testPurchase: { basic: 1, standard: 1, premium: 1 },  // $1 test mode
-  aiReel: { basic: 35, standard: 55, premium: 85 },
-  socialEdit: { basic: 25, standard: 45, premium: 70 },
-  viralCaptions: { basic: 15, standard: 30, premium: 50 },
-  podcastRepurpose: { basic: 40, standard: 65, premium: 95 },
-  autoCaptions: { basic: 10, standard: 20, premium: 35 },
-  smartCut: { basic: 20, standard: 35, premium: 55 },
-  backgroundRemoval: { basic: 25, standard: 40, premium: 60 },
-  audioSync: { basic: 20, standard: 35, premium: 55 }
+  aiReel: { basic: 25, standard: 60, premium: 140 },
+  socialEdit: { basic: 30, standard: 70, premium: 160 },
+  viralCaptions: { basic: 20, standard: 50, premium: 110 },
+  podcastRepurpose: { basic: 40, standard: 95, premium: 220 },
+  autoCaptions: { basic: 15, standard: 35, premium: 75 },
+  smartCut: { basic: 20, standard: 50, premium: 120 },
+  backgroundRemoval: { basic: 25, standard: 60, premium: 150 },
+  audioSync: { basic: 15, standard: 40, premium: 95 }
 };
 
 // Add-on pricing
