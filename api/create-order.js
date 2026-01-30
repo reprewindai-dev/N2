@@ -10,7 +10,6 @@ const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
 
 // Service pricing configuration — MUST match services.html and main.js
 const PRICING = {
-  testPurchase: { basic: 1, standard: 1, premium: 1 },  // $1 test mode
   aiReel: { basic: 25, standard: 60, premium: 140 },
   socialEdit: { basic: 30, standard: 70, premium: 160 },
   viralCaptions: { basic: 20, standard: 50, premium: 110 },
@@ -59,9 +58,6 @@ async function getAccessToken() {
     throw new Error('PayPal credentials not configured. Check Vercel environment variables.');
   }
 
-  // IMPORTANT: Frontend SDK must use the same client ID
-  // Current frontend hardcodes: ATvfbUWm...xICZ
-  // Backend env var must match exactly!
   console.log(`[PayPal] Requesting access token...`);
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
