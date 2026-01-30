@@ -191,7 +191,6 @@
 
             PaymentState.set(true);
             PaymentState.setOrderID(data.orderID);
-            sessionStorage.setItem("sff_order_id", data.orderID);
 
             window.location.href = TALLY_FORM_URL;
           } else {
