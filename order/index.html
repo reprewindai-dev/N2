@@ -47,7 +47,6 @@
               </label>
               <select id="serviceSelect" class="form-select">
                 <option value="">Choose your service...</option>
-                <option value="testPurchase" id="testPurchaseOption" style="display:none;">🧪 Test Purchase ($1)</option>
                 <option value="aiReel">AI Reel Edit</option>
                 <option value="socialEdit">Social Media Edit</option>
                 <option value="viralCaptions">Viral Captions</option>
@@ -314,19 +313,6 @@
 
   <script src="/main.js"></script>
   <script src="/paypal-config.js"></script>
-  <script>
-    // Show test purchase option when ?test=1 is in URL
-    (function() {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('test') === '1') {
-        const testOption = document.getElementById('testPurchaseOption');
-        if (testOption) {
-          testOption.style.display = '';
-          console.log('[Test Mode] $1 test purchase option enabled');
-        }
-      }
-    })();
-  </script>
 </body>
 </html>
 
