@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="pageTitle">Blog Post | Short Form Video Editing</title>
+  <meta name="description" id="pageDescription" content="">
+  <link rel="canonical" id="pageCanonical" href="">
+  <meta property="og:type" content="article">
+  <meta property="og:title" id="ogTitle" content="">
+  <meta property="og:description" id="ogDescription" content="">
+  <meta property="og:url" id="ogUrl" content="">
+  <meta property="og:image" content="https://shortformfactory.com/assets/og-banner.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .blog-post-container {
+      max-width: 800px;
+      margin: 120px auto 60px;
+      padding: 0 20px;
+    }
+    .blog-post-header {
+      margin-bottom: 40px;
+    }
+    .blog-post-meta {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      font-size: 0.875rem;
+      color: rgba(255,255,255,0.5);
+    }
+    .blog-post-category {
+      color: #C6FF40;
+      font-weight: 600;
+    }
+    .blog-post-title {
+      font-size: 2.5rem;
+      line-height: 1.2;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #C6FF40 0%, #fff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .blog-post-excerpt {
+      font-size: 1.25rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+    }
+    .blog-post-content {
+      color: rgba(255,255,255,0.85);
+      line-height: 1.8;
+      font-size: 1.1rem;
+    }
+    .blog-post-content h2 {
+      color: #fff;
+      margin-top: 40px;
+      margin-bottom: 20px;
+      font-size: 1.75rem;
+    }
+    .blog-post-content h3 {
+      color: #C6FF40;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 1.35rem;
+    }
+    .blog-post-content p {
+      margin-bottom: 20px;
+    }
+    .blog-post-content ul, .blog-post-content ol {
+      margin-bottom: 20px;
+      padding-left: 30px;
+    }
+    .blog-post-content li {
+      margin-bottom: 10px;
+    }
+    .blog-post-content a {
+      color: #C6FF40;
+      text-decoration: underline;
+    }
+    .blog-post-content a:hover {
+      color: #fff;
+    }
+    .blog-post-content strong {
+      color: #fff;
+      font-weight: 600;
+    }
+    .blog-post-cta {
+      margin-top: 60px;
+      padding: 40px;
+      background: rgba(198,255,64,0.1);
+      border: 1px solid rgba(198,255,64,0.3);
+      border-radius: 12px;
+      text-align: center;
+    }
+    .blog-post-cta h3 {
+      color: #C6FF40;
+      margin-bottom: 15px;
+    }
+    .blog-post-cta p {
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+    }
+    .blog-back-link {
+      display: inline-block;
+      margin-bottom: 30px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+    }
+    .blog-back-link:hover {
+      color: #C6FF40;
+    }
+    .post-not-found {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255,255,255,0.7);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  
+  <header class="header" id="header">
+    <div class="header-content">
+      <a href="/" class="logo">
+        <img src="/assets/logo.svg" alt="ShortFormFactory" class="logo-img" width="40" height="40">
+        <span class="logo-text">ShortFormFactory</span>
+      </a>
+      <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="mainNav">
+        <a href="/services" class="nav-link">Services</a>
+        <a href="/blog" class="nav-link">Blog</a>
+        <a href="/order" class="nav-link">Order</a>
+        <a href="/contact" class="nav-link">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="blog-post-container" id="postContainer">
+    <div class="post-not-found">Loading post...</div>
+  </div>
+
+  <script src="/main.js" defer></script>
+  <script>
+    async function loadBlogPost() {
+      try {
+        // Get slug from URL path
+        const pathParts = window.location.pathname.split('/');
+        const slug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+
+        const response = await fetch('/blog-posts.json');
+        const data = await response.json();
+        
+        // Find post by slug
+        const post = data.posts.find(p => p.slug === slug);
+
+        if (!post) {
+          document.getElementById('postContainer').innerHTML = `
+            <div class="post-not-found">
+              <h2>Post not found</h2>
+              <p><a href="/blog" class="blog-back-link">← Back to Blog</a></p>
+            </div>
+          `;
+          return;
+        }
+
+        // Check if post should be published yet
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const publishDate = new Date(post.publishDate);
+        publishDate.setHours(0, 0, 0, 0);
+
+        if (publishDate > today) {
+          document.getElementById('postContainer').innerHTML = `
+            <div class="post-not-found">
+              <h2>This post is not yet published</h2>
+              <p>Check back on ${formatDate(post.publishDate)}</p>
+              <p><a href="/blog" class="blog-back-link">← Back to Blog</a></p>
+            </div>
+          `;
+          return;
+        }
+
+        // Update meta tags
+        document.getElementById('pageTitle').textContent = `${post.title} | Short Form Video Editing Blog`;
+        document.getElementById('pageDescription').setAttribute('content', post.excerpt);
+        document.getElementById('pageCanonical').setAttribute('href', `https://shortformfactory.com/blog/${post.slug}`);
+        document.getElementById('ogTitle').setAttribute('content', post.title);
+        document.getElementById('ogDescription').setAttribute('content', post.excerpt);
+        document.getElementById('ogUrl').setAttribute('content', `https://shortformfactory.com/blog/${post.slug}`);
+
+        // Render post
+        document.getElementById('postContainer').innerHTML = `
+          <a href="/blog" class="blog-back-link">← Back to Blog</a>
+          
+          <article class="blog-post-header">
+            <div class="blog-post-meta">
+              <span class="blog-post-category">${post.category}</span>
+              <span>•</span>
+              <span>${post.readTime}</span>
+              <span>•</span>
+              <span>${formatDate(post.publishDate)}</span>
+            </div>
+            <h1 class="blog-post-title">${post.title}</h1>
+            <p class="blog-post-excerpt">${post.excerpt}</p>
+          </article>
+
+          <div class="blog-post-content">
+            ${post.content}
+          </div>
+
+          <div class="blog-post-cta">
+            <h3>Need Professional Short Form Video Editing?</h3>
+            <p>Let our expert editors handle your TikTok, Reels, and YouTube Shorts content.</p>
+            <a href="/order" class="btn btn-primary">Get Started</a>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading blog post:', error);
+        document.getElementById('postContainer').innerHTML = `
+          <div class="post-not-found">
+            <h2>Error loading post</h2>
+            <p><a href="/blog" class="blog-back-link">← Back to Blog</a></p>
+          </div>
+        `;
+      }
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    loadBlogPost();
+  </script>
+</body>
+</html>

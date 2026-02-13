@@ -44,5 +44,8 @@
     { "source": "/thank-you.html", "destination": "/thank-you", "permanent": true },
 
     { "source": "/404.html", "destination": "/404", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/blog/:slug", "destination": "/blog/post-template.html" }
   ]
 }

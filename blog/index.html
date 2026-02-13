@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Short Form Video Editing Blog | Tips, Guides & Strategies</title>
+  <meta name="description" content="Expert insights on short form video editing, TikTok, Instagram Reels, and YouTube Shorts. Learn strategies, tips, and best practices from professional editors.">
+  <link rel="canonical" href="https://shortformfactory.com/blog">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Short Form Video Editing Blog | Expert Tips & Guides">
+  <meta property="og:description" content="Expert insights on short form video editing, TikTok, Instagram Reels, and YouTube Shorts.">
+  <meta property="og:url" content="https://shortformfactory.com/blog">
+  <meta property="og:image" content="https://shortformfactory.com/assets/og-banner.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .blog-header {
+      padding: 120px 20px 60px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(198,255,64,0.05) 0%, transparent 100%);
+    }
+    .blog-header h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #C6FF40 0%, #fff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .blog-header p {
+      font-size: 1.25rem;
+      color: rgba(255,255,255,0.7);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .blog-grid {
+      max-width: 1200px;
+      margin: 60px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 30px;
+    }
+    .blog-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 30px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .blog-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: #C6FF40;
+      transform: translateY(-5px);
+    }
+    .blog-meta {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      font-size: 0.875rem;
+      color: rgba(255,255,255,0.5);
+    }
+    .blog-category {
+      color: #C6FF40;
+      font-weight: 600;
+    }
+    .blog-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .blog-excerpt {
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+    .blog-read-more {
+      color: #C6FF40;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .blog-read-more:hover {
+      text-decoration: underline;
+    }
+    .no-posts {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255,255,255,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  
+  <header class="header" id="header">
+    <div class="header-content">
+      <a href="/" class="logo">
+        <img src="/assets/logo.svg" alt="ShortFormFactory" class="logo-img" width="40" height="40">
+        <span class="logo-text">ShortFormFactory</span>
+      </a>
+      <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="mainNav">
+        <a href="/services" class="nav-link">Services</a>
+        <a href="/blog" class="nav-link">Blog</a>
+        <a href="/order" class="nav-link">Order</a>
+        <a href="/contact" class="nav-link">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="blog-header">
+    <h1>Short Form Video Editing Blog</h1>
+    <p>Expert insights, tips, and strategies for creating viral short form content</p>
+  </section>
+
+  <div class="blog-grid" id="blogGrid">
+    <div class="no-posts">Loading posts...</div>
+  </div>
+
+  <script src="/main.js" defer></script>
+  <script>
+    // Load and display blog posts based on publish date
+    async function loadBlogPosts() {
+      try {
+        const response = await fetch('/blog-posts.json');
+        const data = await response.json();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Filter posts that should be published (publishDate <= today)
+        const publishedPosts = data.posts.filter(post => {
+          const publishDate = new Date(post.publishDate);
+          publishDate.setHours(0, 0, 0, 0);
+          return publishDate <= today;
+        });
+
+        // Sort by publish date (newest first)
+        publishedPosts.sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
+
+        const blogGrid = document.getElementById('blogGrid');
+
+        if (publishedPosts.length === 0) {
+          blogGrid.innerHTML = '<div class="no-posts">No posts published yet. Check back soon!</div>';
+          return;
+        }
+
+        blogGrid.innerHTML = publishedPosts.map(post => `
+          <article class="blog-card" onclick="window.location.href='/blog/${post.slug}'">
+            <div class="blog-meta">
+              <span class="blog-category">${post.category}</span>
+              <span>•</span>
+              <span>${post.readTime}</span>
+              <span>•</span>
+              <span>${formatDate(post.publishDate)}</span>
+            </div>
+            <h2>${post.title}</h2>
+            <p class="blog-excerpt">${post.excerpt}</p>
+            <a href="/blog/${post.slug}" class="blog-read-more">Read More →</a>
+          </article>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading blog posts:', error);
+        document.getElementById('blogGrid').innerHTML = '<div class="no-posts">Error loading posts. Please try again later.</div>';
+      }
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Load posts when page loads
+    loadBlogPosts();
+  </script>
+</body>
+</html>
