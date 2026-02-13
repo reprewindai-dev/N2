@@ -32,14 +32,6 @@
     }
   ],
   "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        { "type": "host", "value": "www.shortformfactory.com" }
-      ],
-      "destination": "https://shortformfactory.com/$1",
-      "permanent": true
-    },
     { "source": "/order.html", "destination": "/order", "permanent": true },
     { "source": "/services.html", "destination": "/services", "permanent": true },
     { "source": "/contact.html", "destination": "/contact", "permanent": true },
