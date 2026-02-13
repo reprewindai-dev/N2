@@ -185,8 +185,8 @@ export default async function handler(req, res) {
         brand_name: 'ShortFormFactory',
         landing_page: 'NO_PREFERENCE',
         user_action: 'PAY_NOW',
-        return_url: `${baseUrl}/thank-you.html`,
-        cancel_url: `${baseUrl}/order.html`
+        return_url: `${baseUrl}/thank-you`,
+        cancel_url: `${baseUrl}/order`
       }
     };
 
